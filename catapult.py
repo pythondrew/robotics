@@ -28,20 +28,23 @@ class CatSim :
         self.cur_t = 0 # time in seconds
         self.cur_v = 0 # motor speed in radians per second
         self.cur_ang = 0 # motor position in radians
+        self.amps = 0 
         self.reduction = reduction # reduction gearing from motor to load.
         self.arm_radius = arm_radius
         self.load_moment = BALL_KG * self.arm_radius**2 # kg*m**2 point load model
-        self.load_moment += 0.0775 # moment of inertia of ball itself. I = 2/3*m*R**2
+        #self.load_moment += 0.0775 # moment of inertia of ball itself. I = 2/3*m*R**2
         
         self.reflected_moment = self.load_moment / self.reduction**2
         self.v = []
         self.t = []
         self.s = []
+        self.i = []
 
     def step(self) :
         self.v.append(self.cur_v)
         self.t.append(self.cur_t)
         self.s.append(self.cur_ang)
+        self.i.append(self.amps)
         emf = self.cur_v * CIM_KT # current back_emf
         amps = (self.drive - emf) / CIM_R # how much current do we draw?
         torque = CIM_KT * amps # torque in newton-meters
@@ -51,10 +54,11 @@ class CatSim :
             motor_accel = load_accel * self.reduction # motor is faster than load.
         else :
             # motor accel = motor torque  * self.reduction**2 / self.load_moment 
-            motor_accel = torque / (self.reflected_moment + (NUM_MOTORS*CIM_J))
+            motor_accel = torque * 0.25 / (self.reflected_moment + (NUM_MOTORS*CIM_J))
         self.cur_v += motor_accel * dt # change our state (motor velocity radians per second)
         self.cur_ang += self.cur_v * dt # change our position (motor rotation in radians)
         self.cur_t += dt
+        self.amps = amps/NUM_MOTORS # not really a state variable
 
 from numpy import array
 from pylab import plot, show, ylabel, xlabel
@@ -65,7 +69,7 @@ reductions = [9, 12, 14.8, 16, 20, 27, 36, 48, 64] # a range of planetary gearbo
 arm_radii = [0.5, 0.6, 0.7] 
 arm_radii = [0.53] # <<< design for this radius (21 inches)
 drive_voltages = [9, 10, 11, 12]
-drive_voltages = [10]
+drive_voltages = [12]
 
 plotvel = True
 
@@ -83,14 +87,14 @@ for reduction in reductions :
     if plotvel :
         plot(motort, loadv)
     else :
-        plot(motort, loads)
+        plot(motort, catsim.i)
     catsims.append(catsim)
    
 xlabel("time in seconds")
 if plotvel : 
     ylabel("ball meters per second")   
 else :
-    ylabel("ball meters")   
+    ylabel("Current, amperes")   
 show()
 
 # load moment of 1.25 kg point load at 0.58 meters = 0.429 kg*m**2
