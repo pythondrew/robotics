@@ -75,11 +75,11 @@ def test(N=10) :
     for i in range(N) :
         lt.sync()
         rv, im0 = cap.read()
-        im0 = array(im0[:,:,1], dtype=int16)
+        im0 = array(im0, dtype=int16)
         lt.wait()
         lt.sync()
         rv, im1 = cap.read()
-        im1 = array(im1[:,:,1], dtype=int16)
+        im1 = array(im1, dtype=int16)
         lt.wait()
         f.append(clip((im0 - im1), 0, 255))
         raw.append((im0, im1))
