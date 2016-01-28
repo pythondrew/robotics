@@ -12,7 +12,7 @@ import cv2
 from cv2 import cv
 from Adafruit_BBIO import GPIO
 GPIO.setup("P9_24", GPIO.OUT)
-from numpy import array, int16, clip
+from numpy import array, int16, uint8, clip
 
 cap = cv2.VideoCapture(0)
 opened = cap.isOpened()
@@ -33,38 +33,74 @@ import time
 
 import threading
 
+class AcquireThread(threading.Thread) :
+    def __init__(self, lt) :
+        threading.Thread.__init__(self)
+        self.daemon = True # this thread will be stopped abruptly when the program exits.
+        self.lt = lt
+        self.tavg = 0.04
+
+    def run(self) :
+        self.im0 = array(cap.read()[1], dtype=int16)
+        self.im1 = array(cap.read()[1], dtype=int16)
+        self.start=time.time()
+        while True :
+            self.im0[:,:,:] = cap.read()[1][:,:,:]
+            self.im1[:,:,:] = cap.read()[1][:,:,:]
+            self.lt.notify() # notify the led thread we want another pair
+            self.end = time.time()
+            self.tdiff = self.end - self.start
+            self.tavg += 0.05 * (self.tdiff - self.tavg)
+            self.fps = 2.0 / self.tavg
+            self.idiff = clip((self.im0 - self.im1), 0, 255)
+            self.start = self.end
+
+def show(img) :
+    """
+    make an 8 bit copy of the image.
+    swap the red and the green pixels.
+    XXX this will mess up the timing of the other threads
+    """
+    icop = array(img, dtype=uint8)
+    icop[:,:,0] = img[:,:,2]
+    icop[:,:,2] = img[:,:,0]
+    imshow(icop, interpolation="nearest")
+            
 class LedThread(threading.Thread) :
-    def __init__(self, delay=0.0) :
+    # separate thread that turns the LED on and off
+    def __init__(self, delay, ontime) :
         threading.Thread.__init__(self)
         self.delay = delay
+        self.ontime = ontime
         self.request = threading.Event()
         self.result = threading.Event()
         self.daemon = True # this thread will be stopped abruptly when the program exits.
     def run(self) :
+        self.start=time.time()
         while True :
             # continuous loop. wait until sync is called 
             self.request.wait()
             time.sleep(self.delay)
-            GPIO.output("P9_24", 0)
-            self.result.set()
-            self.request.clear()
-
-            self.request.wait()
-            time.sleep(self.delay)
+            wake = time.time()
+            self.sleeptime = wake - self.start
             GPIO.output("P9_24", 1)
-            self.result.set()
+            time.sleep(self.ontime)
+            off = time.time()
+            self.ot = off - wake
+            GPIO.output("P9_24", 0)
             self.request.clear()
+            self.start = time.time()
 
-    def sync(self) :
+    def notify(self) :
+        # video thread calls this to ask for another LED pulse.
         self.request.set()
         
-    def wait(self) :
-        self.result.wait()
-        self.result.clear()
-     
-lt = LedThread(delay=0.02)
+lt = LedThread(delay=0.01, ontime=0.005)
+at = AcquireThread(lt)
 lt.start()        
+at.start()
 
+"""
 def test(N=10) :
     for i in range(5) :
         cap.read() # flush
@@ -101,7 +137,7 @@ def rawspeed(N=10) :
     print N / (end-start), "frames per second"
     t = array(times)
     return t[1:]-t[:-1]
-
+"""
 
 from pylab import interactive, imshow
 interactive(True)
