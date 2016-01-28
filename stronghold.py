@@ -20,8 +20,8 @@ if not opened :
     print "no video stream! exiting.."
     exit()
 
-WIDTH = 160.
-HEIGHT = 120.
+WIDTH = 320.
+HEIGHT = 240.
 
 cap.set(cv.CV_CAP_PROP_FRAME_WIDTH, WIDTH)
 cap.set(cv.CV_CAP_PROP_FRAME_HEIGHT, HEIGHT)
