@@ -3,6 +3,14 @@ vision processing code for Stronghold, FRC 2016 game
 runs on a beaglebone black. We're using a logitech c290 but other video sources 
 will probably work better!
 the c290 is uvcvideo and doesn't use a v24l driver.
+
+run as:
+
+sudo python -i stronghold.py
+
+you can inspect the led thread and acquire thread objects from the console.
+show(at.idiff) will show the difference image.
+plot(at.rsum) and plot(at.csum) show the 1D marginal sums
  
 if it doesn't work
 try
@@ -110,7 +118,7 @@ class LedThread(threading.Thread) :
         # video thread calls this to ask for another LED pulse.
         self.request.set()
         
-lt = LedThread(delay=0.001, ontime=0.01)
+lt = LedThread(delay=0.000, ontime=0.008)
 at = AcquireThread(lt)
 lt.start()        
 at.start()
